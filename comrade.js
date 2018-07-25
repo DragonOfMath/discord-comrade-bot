@@ -1,11 +1,16 @@
 const Discordie = require('discordie');
-
+const fs        = require('fs');
+const ourIgnoreList = require('./ignore.json');
 const ourAuth = require('./auth.json');
 const PREFIX  = '?';
 const ourClient = new Discordie({
 	autoReconnect: true
 });
 
+function save(file, object) {
+	console.log('Saving ' + file + '.json');
+	return fs.writeFileSync('./' + file + '.json', JSON.stringify(object, null, '\t'));
+}
 function updateCommunismSpreadProgress() {
 	ourClient.User.setGame(`Communism in ${ourClient.Guilds.length} guilds`);
 }
@@ -192,6 +197,21 @@ Commands.create('anthem', {
 		}
 	}
 });
+Commands.create('shutup', {
+	info: 'Silence Comrade if he is too noisy.',
+	aliases: ['toggle','silence','mute'],
+	run: function ({guild:ourGuild}) {
+		if (ourIgnoreList.includes(ourGuild.id)) {
+			ourIgnoreList.splice(ourIgnoreList.indexOf(ourGuild.id),1);
+			save('ignore', ourIgnoreList);
+			return 'You... want me to speak again? Good comrade!';
+		} else {
+			ourIgnoreList.push(ourGuild.id);
+			save('ignore', ourIgnoreList);
+			return 'My deepest apologies for the nuisances, I will not speak out of line now.';
+		}
+	}
+});
 
 ourClient.connect({
 	token: ourAuth.token,
@@ -204,10 +224,12 @@ ourClient.Dispatcher.on('GATEWAY_READY', () => {
 });
 ourClient.Dispatcher.on('MESSAGE_CREATE', (ourResponse) => {
 	const ourContext = new Context(ourResponse, ourClient);
-	if (ourContext.user.id === ourClient.User.id || !ourContext.command) return;
+	if (ourContext.user.id === ourClient.User.id) return;
 	if (ourContext.user.bot) return;
-	var ourCommand = Commands.get(ourContext.cmd);
-	if (ourCommand) {
+	
+	if (ourContext.command) {
+		var ourCommand = Commands.get(ourContext.cmd);
+		if (!ourCommand) return;
 		console.log('Command:',ourContext.command);
 		
 		return ourCommand.resolve(ourContext).then(ourReply => {
@@ -221,14 +243,18 @@ ourClient.Dispatcher.on('MESSAGE_CREATE', (ourResponse) => {
 			}
 		}).catch(ourError => ourContext.handleError(ourError));
 	} else {
+		if (ourIgnoreList.includes(ourContext.guild.id)) return;
+		
 		let ourMessage = ourContext.content
 		.replace(/private property/gi, '*OUR* property')
 		.replace(/prisons?/gi, 'the *Gulags*')
 		.replace(/capitalist(?! pig)/gi, 'Capitalist *PIG*')
-		.replace(/\b(capitalism|socialism)/gi, '*Communism*')
+		.replace(/capitalism|socialism/gi, '*Communism*')
+		.replace(/minecraft/gi, '*Ourcraft*')
 		.replace(/\bi'm\b/gi, '*WE\'RE*')
 		.replace(/\bi\b/gi, '*WE*')
-		.replace(/\bmy\b/gi, '*OUR*')
+		.replace(/myself/gi, '*OURSELVES*')
+		.replace(/\bmy/gi, '*OUR*')
 		.replace(/\bmine\b/gi, '*OURS*')
 		.replace(/\bme\b/gi, '*US*');
 		
@@ -237,9 +263,9 @@ ourClient.Dispatcher.on('MESSAGE_CREATE', (ourResponse) => {
 			ourContext.channel.sendMessage('You mean, ' + ourMessage);
 		} else if (/wealth|money|bank|rich|poor/i.test(ourMessage)) {
 			ourContext.channel.sendMessage('You see comrade, with Communism there is no rich or poor, only equal men.');
-		} else if (/^good bot/i.test(ourMessage)) {
+		} else if (/^good (bot|comrade)/i.test(ourMessage)) {
 			ourContext.channel.sendMessage('Cheers, comrade! For the betterment of all!');
-		} else if (/^bad bot/i.test(ourMessage)) {
+		} else if (/^bad (bot|comrade)/i.test(ourMessage)) {
 			ourContext.channel.sendMessage('You stupid capitalist pig will know the true Glory of Work when you rot in the Gulags.');
 		}
 	}
