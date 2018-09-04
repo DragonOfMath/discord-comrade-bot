@@ -260,9 +260,11 @@ ourClient.Dispatcher.on('MESSAGE_CREATE', (ourResponse) => {
 		
 		if (ourMessage !== ourContext.content) {
 			console.log(`Corrected sentence by ${ourContext.user.username} in ${ourContext.guild.name}: ${ourMessage}`);
-			ourContext.channel.sendMessage('You mean, ' + ourMessage);
-		} else if (/wealth|money|bank|rich|poor/i.test(ourMessage)) {
-			ourContext.channel.sendMessage('You see comrade, with Communism there is no rich or poor, only equal men.');
+			ourContext.channel.sendMessage('You mean, ' + ourMessage).catch(e => {
+				console.error(e);
+				// disgraceful!
+				ourClient.disconnect();
+			});
 		} else if (/^good (bot|comrade)/i.test(ourMessage)) {
 			ourContext.channel.sendMessage('Cheers, comrade! For the betterment of all!');
 		} else if (/^bad (bot|comrade)/i.test(ourMessage)) {
